@@ -1,0 +1,133 @@
+#!/bin/bash
+#
+# Date: 25-02-2019
+# Author: Michiel Lemmens
+# All credit for genpmk and coWPAtty goes to their origial copyright owners
+# Copyright (C) 2019 Michiel Lemmens
+# 
+# This program is free software: you can redistribute it and/or modify it under the terms 
+# of the GNU General Public License as published by the Free Software Foundation, either 
+# version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+# See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with this program. 
+# If not, see http://www.gnu.org/licenses/.
+
+function finish {
+	printf "\n[*] Cleanup of $counter sessions\n"
+	count=1
+	while [ $count -le $counter ] ; do
+		sess="genmp$count" 
+		screen -S $sess -X quit
+		let "count += 1"
+	done
+	echo "[*] Cleanup done!"
+	exit 0
+}
+trap finish SIGTERM
+trap finish SIGINT
+
+
+maxcpu=$(nproc)
+echo $maxcpu
+echo "Welcome to genpmk-mp!"
+case $# in
+	3)
+		proc=$maxcpu
+		echo "[*] You have not entered a number of processors to be used. We will be using all $proc processors"
+		;;
+	4)
+		case $4 in
+			''|*[!0-9]*) echo "[*] <processor> must be number";exit 0;;
+			*) :;;
+		esac
+		proc=$4
+		if [ $proc -gt $maxcpu ]; then
+			echo -e "\e[91mError: Number of processors cannot be greater than the number of CPU's on the system. Choose a lower <processor> number\e[39m"
+			exit 0	
+		fi
+		echo "[*] You have entered $proc processors to be used"	
+		;;
+	*)
+		echo "Usage: ./genmp wordlist outdir ssid <processor>"
+		exit 0
+		;;
+esac
+wl=$(realpath "$1")
+out=$2
+ssid=$3
+
+echo "[*] Checking for previous sessions..."
+
+if [ -d "/tmp/genmp/splits" ]; then
+	if [ -z "$(ls -A /tmp/genmp/splits)" ]; then
+		:
+	else
+		read -r -p "[*] Previous session detected, overwrite? [y/N] " resp
+			case "$resp" in
+				[yY][eE][sS]|[yY])
+					echo "[*] Overwriting..."
+					;;
+				*)
+					echo "[*] Aborted"
+					exit 0
+					;;
+			esac 
+	fi
+    rm -rf /tmp/genmp/splits/*
+else
+	mkdir -p /tmp/genmp/splits
+fi
+if [ -d "/tmp/genmp/out" ]; then  
+    rm -rf /tmp/genmp/out/*
+	else
+	mkdir -p /tmp/genmp/out
+fi
+if [ -d "/tmp/genmp/log" ]; then  
+    rm -rf /tmp/genmp/log/*
+	else
+	mkdir -p /tmp/genmp/log
+fi
+
+echo "[*] Calculating split"
+lines=$(cat $wl | wc -l)
+#lines=$(wc -l $wl)
+lps=$(($lines/$proc+1))
+echo "[*] Splitting wordlist"
+split -l "$lps" "$wl" /tmp/genmp/splits/
+echo "[*] Starting sessions..."
+files="/tmp/genmp/splits/*"
+counter=0
+for f in $files
+do
+	let "counter += 1"
+	tout="/tmp/genmp/out/out$counter"
+	#echo "f is $f"
+	#screen -S "genmp$counter" -d -m bash -c "for x in {1..5}; do date >> /tmp/genmp/log/genmp$counter; sleep 1; done"
+	screen -S "genmp$counter" -d -m bash -c "genpmk -f $f -d $tout -s $ssid >> /tmp/genmp/log/genmp$counter"
+	echo "$tout is running, master" >> "/tmp/genmp/log/genmp$counter"
+done
+echo "[*] $counter sessions running!"
+echo "[*] Starting monitoring..."
+sleep 3
+sessions=$(screen -ls | grep genmp)
+while  ! [ -z "$sessions" ]
+do	
+	sleep 1
+	sessions=$(screen -ls | grep genmp)
+	cur=$(tail -n1 /tmp/genmp/log/genmp1 | cut -d" " -f3 | cut -d":" -f1)
+	case $cur in
+    '		'|*[!0-9]*) cur=0;;
+   		 *) :;;
+	esac
+	perc=$(($cur*100/$lps))
+	printf '\rRunning, %s percent done' $perc
+done
+printf "\n[*] Copying all outfiles to destination directory"
+cp /tmp/genmp/out/out* "$out/"
+echo "[*] Done"
+
+printf "\nEnded!\n"

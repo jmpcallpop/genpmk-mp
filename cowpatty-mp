@@ -1,0 +1,58 @@
+#!/bin/bash
+#
+# Date: 25-02-2019
+# Author: Michiel Lemmens
+# All credit for genpmk and coWPAtty goes to their origial copyright owners
+# Copyright (C) 2019 Michiel Lemmens
+# 
+# This program is free software: you can redistribute it and/or modify it under the terms 
+# of the GNU General Public License as published by the Free Software Foundation, either 
+# version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+# See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with this program. 
+# If not, see http://www.gnu.org/licenses/.
+
+echo "Welcome to cowpatty-mp!"
+case $# in
+	3)
+		:
+		;;
+	*)
+		echo "Usage: ./cowpatty-mp dictionary-dir pcap ssid"
+		exit 0
+		;;
+esac
+dict=$1
+pcap=$2
+ssid=$3
+
+echo "[*] Checking existence dictionary-directory"
+if ! [ -d "$dict" ]; then
+	echo "[*] Dictionary-directory does not exist, exiting..."
+	exit 0
+else
+	echo "[*] Directory OK!"
+fi
+if ! [ -f "$pcap" ]; then
+	echo "[*] Pcap-file does not exist, exiting..."
+	exit 0
+else
+	echo "[*] Pcap-file OK!"
+fi
+
+path="$dict/out*"
+for file in $path
+do
+	res=$(cowpatty -d "$file" -r "$pcap" -s "$ssid" | grep "The PSK is")
+	if ! [ -z "$res" ]; then
+		echo -e "\e[32m[*] $res\e[39m"
+	fi
+done
+
+
+echo "[*] Done!"
+
