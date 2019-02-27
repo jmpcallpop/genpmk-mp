@@ -1,0 +1,44 @@
+coWPAtty’s genpmk multiprocessor
+
+All credit to Joshua Wright for the magnificent coWPAtty framework!
+
+The coWPAtty framework, used to crack WPA/WPA2 handshakes, contains the genpmk utility to generate a rainbow table of possible Pairwise Master Keys.
+
+Download: github.com/michiellemmens/genpmk-mp
+Out of the box, genpmk uses only one processor of your system. If, like me, you run this suite on a server, you’d like to make use of all processors to generate your rainbow table.
+
+So, I’ve pulled out my scripting toolbox and bash’ed out a script that will divide the workload of generating the hashes over all (default) or a part of your CPU’s. We’ll see later on that the total runtime in the example goes from 112 days to just 3, using 40 CPU’s.
+
+There are 2 prerequisites: ‘coWPAtty’ and ‘screen’ must be installed on your system.
+
+The script takes 4 inputs: a dictionary file (a list of all the passwords you are generating a rainbow table for), an output file which will later on serve as the input for coWPAtty when we will be doing the actual lookups, the SSID of the WiFi access point since this is used as salt, and (optionally) the number of CPU’s to be used by the script. This will come in handy if you want to use the machine while generating the table.
+
+There is some file processing done in the /tmp/ folder, so that must be writable for the user running the script.
+
+And now down to the nitty gritty!
+
+1. Getting things ready
+The first thing to do is to make sure the scripts and the wordlist (a simple list with 1 password per line) are in one common folder
+
+We now create the folder that will host the output files, one per processor. These are all partial PMK-files.
+
+2. Running ./genpmk-mp
+Next, we run the command using ./genpmk-mp wordlist outdir ssid <processor>. The last parameter is optional.
+
+If it is not the first time you run the program, a previous session will be detected. Just type Y to overwrite the temporary files.
+
+3. Watching it work
+
+4. Finished
+After the script completes, our output folder is filled with the PMK-files.
+
+5. Lookup using cowpatty-mp
+We then run the cowpatty-mp file to do a lookup of a PMK.
+
+We run the script like this: ./cowpatty-mp outdir pcap-file ssid.
+
+6. Result of lookup
+
+And that is that!
+
+Feel free to use, adapt, implement these scripts under GNU GPL. Thanks for leaving credit!
